@@ -5,10 +5,10 @@ import openai
 import pinecone
 import time
 import sys
+import subprocess
 from collections import deque
 from typing import Dict, List
 from dotenv import load_dotenv
-import os
 
 # Parse arguments for optional extensions
 parser = argparse.ArgumentParser()
@@ -81,7 +81,10 @@ def get_ada_embedding(text):
     return openai.Embedding.create(input=[text], model="text-embedding-ada-002")["data"][0]["embedding"]
 
 def openai_call(prompt: str, model: str = OPENAI_API_MODEL, temperature: float = 0.5, max_tokens: int = 100):
-    if not model.startswith('gpt-'):
+    if model == "llama.cpp":
+        response = subprocess.check_output(f'./llama.cpp/main -m ./llama.cpp/models/13B/ggml-model-q4_0.bin -n {max_tokens} --top_p 1 --temp {temperature} -p "{prompt}"')
+        return response.strip()
+    elif not model.startswith('gpt-'):
         # Use completion API
         response = openai.Completion.create(
             engine=model,
