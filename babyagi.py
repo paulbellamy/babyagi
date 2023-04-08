@@ -73,6 +73,12 @@ index = pinecone.Index(table_name)
 # Task list
 task_list = deque([])
 
+preloaded_model = None
+if OPENAI_API_MODEL == "gpt4all":
+    from nomic.gpt4all import GPT4All
+    preloaded_model = GPT4All()
+    preloaded_model.open()
+
 def add_task(task: Dict):
     task_list.append(task)
 
@@ -81,9 +87,20 @@ def get_ada_embedding(text):
     return openai.Embedding.create(input=[text], model="text-embedding-ada-002")["data"][0]["embedding"]
 
 def openai_call(prompt: str, model: str = OPENAI_API_MODEL, temperature: float = 0.5, max_tokens: int = 100):
+    if model == "gpt4all":
+        preloaded_model.prompt(prompt).strip()
     if model == "llama.cpp":
-        response = subprocess.check_output(f'./llama.cpp/main -m ./llama.cpp/models/13B/ggml-model-q4_0.bin -n {max_tokens} --top_p 1 --temp {temperature} -p "{prompt}"')
-        return response.strip()
+        cwd = os.path.dirname(os.path.realpath(__file__)) 
+        result = subprocess.run([
+            './llama.cpp/main',
+            '-m', './llama.cpp/models/13B/ggml-model-q4_0.bin',
+            '--threads', str(6),
+            '-n', str(max_tokens),
+            '--top_p', str(1),
+            '--temp', str(temperature),
+            '-p', prompt
+        ], stdout=subprocess.PIPE, cwd=cwd)
+        return response.stdout.decode().strip()
     elif not model.startswith('gpt-'):
         # Use completion API
         response = openai.Completion.create(
